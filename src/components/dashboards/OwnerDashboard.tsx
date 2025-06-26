@@ -101,8 +101,11 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
         end_date: leave.end_date,
         reason: leave.reason,
         status: leave.status,
-        user_name: leave.profiles && typeof leave.profiles === 'object' && 'name' in leave.profiles 
-          ? leave.profiles.name 
+        user_name: (leave.profiles && 
+                   typeof leave.profiles === 'object' && 
+                   !Array.isArray(leave.profiles) &&
+                   'name' in leave.profiles)
+          ? (leave.profiles as { name: string }).name 
           : 'Unknown User'
       })) || [];
 
