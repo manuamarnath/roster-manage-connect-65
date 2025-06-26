@@ -24,7 +24,7 @@ interface LeaveRequest {
   status: 'pending' | 'approved' | 'rejected';
   profiles: {
     name: string;
-  };
+  } | null;
 }
 
 interface Employee {
@@ -59,7 +59,7 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
-      // Fetch pending leave requests
+      // Fetch pending leave requests with profile names
       const { data: leaveData } = await supabase
         .from('leave_requests')
         .select(`
@@ -94,7 +94,9 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
         monthlyAttendance: 92 // This would need more complex calculation
       });
 
-      setPendingLeaves(leaveData || []);
+      // Filter and transform leave data to ensure proper typing
+      const validLeaveData = leaveData?.filter(leave => leave.profiles && typeof leave.profiles === 'object' && 'name' in leave.profiles) || [];
+      setPendingLeaves(validLeaveData as LeaveRequest[]);
       setRecentEmployees(recentEmployeeData || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -135,6 +137,11 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
     const end = new Date(endDate);
     const timeDiff = end.getTime() - start.getTime();
     return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+  };
+
+  const handleEmployeeAdded = () => {
+    setShowAddEmployee(false);
+    fetchDashboardData(); // Refresh data after adding employee
   };
 
   return (
@@ -216,7 +223,7 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
                   pendingLeaves.map((leave) => (
                     <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h4 className="font-medium">{leave.profiles.name}</h4>
+                        <h4 className="font-medium">{leave.profiles?.name || 'Unknown User'}</h4>
                         <p className="text-sm text-gray-500">
                           {leave.type} - {calculateLeaveDays(leave.start_date, leave.end_date)} days
                         </p>
@@ -301,7 +308,7 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
       {showAddEmployee && (
         <AddEmployeeForm 
           onClose={() => setShowAddEmployee(false)}
-          onSubmit={fetchDashboardData}
+          onSubmit={handleEmployeeAdded}
         />
       )}
     </div>

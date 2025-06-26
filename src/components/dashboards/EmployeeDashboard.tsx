@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ const EmployeeDashboard = ({ user }: EmployeeDashboardProps) => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const { toast } = useToast();
 
-  // Mock data
   const stats = {
     attendanceToday: "Not Checked In",
     pendingLeaves: 1,
@@ -85,6 +83,22 @@ const EmployeeDashboard = ({ user }: EmployeeDashboardProps) => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const handleLeaveRequestSubmitted = () => {
+    setShowLeaveRequest(false);
+    toast({
+      title: "Leave Request Submitted",
+      description: "Your leave request has been submitted for approval.",
+    });
+  };
+
+  const handleWorkReportSubmitted = () => {
+    setShowWorkReport(false);
+    toast({
+      title: "Work Report Submitted",
+      description: "Your daily work report has been submitted successfully.",
+    });
   };
 
   return (
@@ -267,28 +281,14 @@ const EmployeeDashboard = ({ user }: EmployeeDashboardProps) => {
       {showLeaveRequest && (
         <LeaveRequestForm 
           onClose={() => setShowLeaveRequest(false)}
-          onSubmit={(leaveData) => {
-            console.log("Leave request:", leaveData);
-            setShowLeaveRequest(false);
-            toast({
-              title: "Leave Request Submitted",
-              description: "Your leave request has been submitted for approval.",
-            });
-          }}
+          onSubmit={handleLeaveRequestSubmitted}
         />
       )}
 
       {showWorkReport && (
         <WorkReportForm 
           onClose={() => setShowWorkReport(false)}
-          onSubmit={(reportData) => {
-            console.log("Work report:", reportData);
-            setShowWorkReport(false);
-            toast({
-              title: "Work Report Submitted",
-              description: "Your daily work report has been submitted successfully.",
-            });
-          }}
+          onSubmit={handleWorkReportSubmitted}
         />
       )}
     </div>

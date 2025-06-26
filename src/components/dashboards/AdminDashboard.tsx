@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +61,22 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const handleEmployeeAdded = () => {
+    setShowAddEmployee(false);
+    toast({
+      title: "Employee Added",
+      description: "Employee has been added successfully.",
+    });
+  };
+
+  const handleTaskAssigned = () => {
+    setShowAssignTask(false);
+    toast({
+      title: "Task Assigned",
+      description: "Task has been assigned successfully.",
+    });
   };
 
   return (
@@ -218,28 +233,14 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       {showAddEmployee && (
         <AddEmployeeForm 
           onClose={() => setShowAddEmployee(false)}
-          onSubmit={(employeeData) => {
-            console.log("New employee:", employeeData);
-            setShowAddEmployee(false);
-            toast({
-              title: "Employee Added",
-              description: `${employeeData.name} has been added successfully.`,
-            });
-          }}
+          onSubmit={handleEmployeeAdded}
         />
       )}
 
       {showAssignTask && (
         <AssignTaskForm 
           onClose={() => setShowAssignTask(false)}
-          onSubmit={(taskData) => {
-            console.log("New task:", taskData);
-            setShowAssignTask(false);
-            toast({
-              title: "Task Assigned",
-              description: `Task "${taskData.title}" has been assigned successfully.`,
-            });
-          }}
+          onSubmit={handleTaskAssigned}
         />
       )}
     </div>
