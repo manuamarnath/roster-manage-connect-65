@@ -9,7 +9,192 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendance: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string | null
+          date: string
+          id: string
+          notes: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          emergency_contact: string | null
+          end_date: string
+          id: string
+          reason: string
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"] | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          emergency_contact?: string | null
+          end_date: string
+          id?: string
+          reason: string
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"] | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          emergency_contact?: string | null
+          end_date?: string
+          id?: string
+          reason?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"] | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          email: string
+          id: string
+          join_date: string | null
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          email: string
+          id: string
+          join_date?: string | null
+          name: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          id?: string
+          join_date?: string | null
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_by: string
+          assignee_id: string
+          category: string | null
+          created_at: string | null
+          description: string
+          due_date: string
+          id: string
+          priority: Database["public"]["Enums"]["task_priority"] | null
+          status: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_by: string
+          assignee_id: string
+          category?: string | null
+          created_at?: string | null
+          description: string
+          due_date: string
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_by?: string
+          assignee_id?: string
+          category?: string | null
+          created_at?: string | null
+          description?: string
+          due_date?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["task_priority"] | null
+          status?: Database["public"]["Enums"]["task_status"] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      work_reports: {
+        Row: {
+          achievements: string | null
+          challenges: string | null
+          created_at: string | null
+          date: string
+          hours_worked: number | null
+          id: string
+          next_day_plan: string | null
+          tasks_completed: string
+          user_id: string
+        }
+        Insert: {
+          achievements?: string | null
+          challenges?: string | null
+          created_at?: string | null
+          date?: string
+          hours_worked?: number | null
+          id?: string
+          next_day_plan?: string | null
+          tasks_completed: string
+          user_id: string
+        }
+        Update: {
+          achievements?: string | null
+          challenges?: string | null
+          created_at?: string | null
+          date?: string
+          hours_worked?: number | null
+          id?: string
+          next_day_plan?: string | null
+          tasks_completed?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +203,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      leave_status: "pending" | "approved" | "rejected"
+      task_priority: "low" | "medium" | "high"
+      task_status: "pending" | "in_progress" | "completed"
+      user_role: "owner" | "admin" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +321,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      leave_status: ["pending", "approved", "rejected"],
+      task_priority: ["low", "medium", "high"],
+      task_status: ["pending", "in_progress", "completed"],
+      user_role: ["owner", "admin", "employee"],
+    },
   },
 } as const

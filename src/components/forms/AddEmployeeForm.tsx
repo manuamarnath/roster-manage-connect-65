@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddEmployeeFormProps {
   onClose: () => void;
-  onSubmit: (employeeData: any) => void;
+  onSubmit: () => void;
 }
 
 const AddEmployeeForm = ({ onClose, onSubmit }: AddEmployeeFormProps) => {
@@ -16,14 +18,57 @@ const AddEmployeeForm = ({ onClose, onSubmit }: AddEmployeeFormProps) => {
     name: "",
     email: "",
     department: "",
-    role: "employee",
-    joiningDate: "",
-    salary: ""
+    role: "employee" as "employee" | "admin",
+    password: ""
   });
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    setLoading(true);
+
+    try {
+      // Create the user account
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        password: formData.password,
+        email_confirm: true,
+        user_metadata: {
+          name: formData.name
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Update the profile with additional information
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: formData.name,
+          role: formData.role,
+          department: formData.department
+        })
+        .eq('id', authData.user.id);
+
+      if (profileError) throw profileError;
+
+      toast({
+        title: "Employee Added",
+        description: `${formData.name} has been added successfully.`,
+      });
+
+      onSubmit();
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add employee",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -64,6 +109,18 @@ const AddEmployeeForm = ({ onClose, onSubmit }: AddEmployeeFormProps) => {
             </div>
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="password">Temporary Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              placeholder="Temporary password for the employee"
+              required
+            />
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
@@ -83,7 +140,7 @@ const AddEmployeeForm = ({ onClose, onSubmit }: AddEmployeeFormProps) => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+              <Select value={formData.role} onValueChange={(value: "employee" | "admin") => handleInputChange("role", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -95,36 +152,12 @@ const AddEmployeeForm = ({ onClose, onSubmit }: AddEmployeeFormProps) => {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="joiningDate">Joining Date</Label>
-              <Input
-                id="joiningDate"
-                type="date"
-                value={formData.joiningDate}
-                onChange={(e) => handleInputChange("joiningDate", e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="salary">Salary</Label>
-              <Input
-                id="salary"
-                type="number"
-                value={formData.salary}
-                onChange={(e) => handleInputChange("salary", e.target.value)}
-                placeholder="50000"
-                required
-              />
-            </div>
-          </div>
-          
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Add Employee
+            <Button type="submit" disabled={loading}>
+              {loading ? "Adding..." : "Add Employee"}
             </Button>
           </div>
         </form>

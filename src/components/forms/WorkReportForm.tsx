@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface WorkReportFormProps {
   onClose: () => void;
-  onSubmit: (reportData: any) => void;
+  onSubmit: () => void;
 }
 
 const WorkReportForm = ({ onClose, onSubmit }: WorkReportFormProps) => {
@@ -20,10 +23,47 @@ const WorkReportForm = ({ onClose, onSubmit }: WorkReportFormProps) => {
     achievements: "",
     nextDayPlan: ""
   });
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (!user) return;
+    
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('work_reports')
+        .upsert({
+          user_id: user.id,
+          date: formData.date,
+          hours_worked: parseFloat(formData.hoursWorked),
+          tasks_completed: formData.tasksCompleted,
+          achievements: formData.achievements || null,
+          challenges: formData.challenges || null,
+          next_day_plan: formData.nextDayPlan || null
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Work Report Submitted",
+        description: "Your daily work report has been saved successfully.",
+      });
+
+      onSubmit();
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit work report",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -116,8 +156,8 @@ const WorkReportForm = ({ onClose, onSubmit }: WorkReportFormProps) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Submit Report
+            <Button type="submit" disabled={loading}>
+              {loading ? "Submitting..." : "Submit Report"}
             </Button>
           </div>
         </form>

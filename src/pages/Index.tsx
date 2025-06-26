@@ -1,11 +1,11 @@
 
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { UserCircle, Settings, LogOut } from "lucide-react";
 import DashboardContent from "@/components/DashboardContent";
-import LoginForm from "@/components/LoginForm";
+import AuthPage from "@/components/AuthPage";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 
 export type UserRole = "owner" | "admin" | "employee";
 
@@ -19,19 +19,32 @@ export interface User {
 }
 
 const Index = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-  };
-
-  if (!currentUser) {
-    return <LoginForm onLogin={handleLogin} />;
+  if (authLoading || profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
+
+  if (!user || !profile) {
+    return <AuthPage />;
+  }
+
+  const currentUser: User = {
+    id: profile.id,
+    name: profile.name,
+    email: profile.email,
+    role: profile.role,
+    department: profile.department || '',
+    joinDate: profile.join_date
+  };
 
   const getRoleColor = (role: UserRole) => {
     switch (role) {
@@ -44,6 +57,10 @@ const Index = () => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
   };
 
   return (

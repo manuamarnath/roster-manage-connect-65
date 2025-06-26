@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,40 +8,133 @@ import { Users, Calendar, ClipboardList, BarChart3, Plus, CheckCircle, XCircle }
 import { User } from "@/pages/Index";
 import AddEmployeeForm from "../forms/AddEmployeeForm";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OwnerDashboardProps {
   user: User;
 }
 
+interface LeaveRequest {
+  id: string;
+  user_id: string;
+  type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  profiles: {
+    name: string;
+  };
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  department: string | null;
+  join_date: string;
+  role: string;
+}
+
 const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
   const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
+  const [recentEmployees, setRecentEmployees] = useState<Employee[]>([]);
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    pendingLeaves: 0,
+    completedTasks: 0,
+    monthlyAttendance: 0
+  });
   const { toast } = useToast();
 
-  // Mock data
-  const stats = {
-    totalEmployees: 15,
-    pendingLeaves: 3,
-    completedTasks: 42,
-    monthlyAttendance: 92
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch employees count
+      const { count: employeeCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch pending leave requests
+      const { data: leaveData } = await supabase
+        .from('leave_requests')
+        .select(`
+          *,
+          profiles!leave_requests_user_id_fkey(name)
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      // Fetch recent employees
+      const { data: recentEmployeeData } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('join_date', { ascending: false })
+        .limit(5);
+
+      // Fetch completed tasks count (for this month)
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { count: completedTasksCount } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .gte('updated_at', startOfMonth.toISOString());
+
+      setStats({
+        totalEmployees: employeeCount || 0,
+        pendingLeaves: leaveData?.length || 0,
+        completedTasks: completedTasksCount || 0,
+        monthlyAttendance: 92 // This would need more complex calculation
+      });
+
+      setPendingLeaves(leaveData || []);
+      setRecentEmployees(recentEmployeeData || []);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
   };
 
-  const pendingLeaves = [
-    { id: 1, employee: "Alice Cooper", type: "Sick Leave", days: 2, date: "2024-01-15" },
-    { id: 2, employee: "Bob Wilson", type: "Vacation", days: 5, date: "2024-01-20" },
-    { id: 3, employee: "Charlie Brown", type: "Personal", days: 1, date: "2024-01-18" }
-  ];
+  const handleApproveLeave = async (leaveId: string, approved: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({
+          status: approved ? 'approved' : 'rejected',
+          approved_by: user.id,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', leaveId);
 
-  const recentEmployees = [
-    { id: 1, name: "Alice Cooper", department: "Marketing", joinDate: "2024-01-10" },
-    { id: 2, name: "Bob Wilson", department: "Sales", joinDate: "2024-01-08" },
-    { id: 3, name: "Charlie Brown", department: "Development", joinDate: "2024-01-05" }
-  ];
+      if (error) throw error;
 
-  const handleApproveLeave = (leaveId: number, approved: boolean) => {
-    toast({
-      title: approved ? "Leave Approved" : "Leave Rejected",
-      description: `Leave request has been ${approved ? "approved" : "rejected"} successfully.`,
-    });
+      toast({
+        title: approved ? "Leave Approved" : "Leave Rejected",
+        description: `Leave request has been ${approved ? "approved" : "rejected"} successfully.`,
+      });
+
+      // Refresh data
+      fetchDashboardData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update leave request",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const calculateLeaveDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const timeDiff = end.getTime() - start.getTime();
+    return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
   };
 
   return (
@@ -117,33 +210,42 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pendingLeaves.map((leave) => (
-                  <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{leave.employee}</h4>
-                      <p className="text-sm text-gray-500">{leave.type} - {leave.days} days</p>
-                      <p className="text-xs text-gray-400">Requested for: {leave.date}</p>
+                {pendingLeaves.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No pending leave requests</p>
+                ) : (
+                  pendingLeaves.map((leave) => (
+                    <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">{leave.profiles.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          {leave.type} - {calculateLeaveDays(leave.start_date, leave.end_date)} days
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(leave.start_date).toLocaleDateString()} to {new Date(leave.end_date).toLocaleDateString()}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">{leave.reason}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveLeave(leave.id, true)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleApproveLeave(leave.id, false)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveLeave(leave.id, true)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleApproveLeave(leave.id, false)}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -161,10 +263,10 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
                   <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{employee.name}</h4>
-                      <p className="text-sm text-gray-500">{employee.department}</p>
-                      <p className="text-xs text-gray-400">Joined: {employee.joinDate}</p>
+                      <p className="text-sm text-gray-500">{employee.department || 'No department'}</p>
+                      <p className="text-xs text-gray-400">Joined: {new Date(employee.join_date).toLocaleDateString()}</p>
                     </div>
-                    <Badge variant="secondary">Active</Badge>
+                    <Badge variant="secondary">{employee.role}</Badge>
                   </div>
                 ))}
               </div>
@@ -182,13 +284,13 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg">
                   <h4 className="font-medium mb-2">Attendance Summary</h4>
-                  <p className="text-2xl font-bold text-green-600">92%</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.monthlyAttendance}%</p>
                   <p className="text-sm text-gray-500">Average monthly attendance</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <h4 className="font-medium mb-2">Task Completion</h4>
-                  <p className="text-2xl font-bold text-blue-600">87%</p>
-                  <p className="text-sm text-gray-500">Tasks completed on time</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.completedTasks}</p>
+                  <p className="text-sm text-gray-500">Tasks completed this month</p>
                 </div>
               </div>
             </CardContent>
@@ -199,14 +301,7 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
       {showAddEmployee && (
         <AddEmployeeForm 
           onClose={() => setShowAddEmployee(false)}
-          onSubmit={(employeeData) => {
-            console.log("New employee:", employeeData);
-            setShowAddEmployee(false);
-            toast({
-              title: "Employee Added",
-              description: `${employeeData.name} has been added successfully.`,
-            });
-          }}
+          onSubmit={fetchDashboardData}
         />
       )}
     </div>

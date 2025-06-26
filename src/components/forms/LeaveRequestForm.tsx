@@ -6,10 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface LeaveRequestFormProps {
   onClose: () => void;
-  onSubmit: (leaveData: any) => void;
+  onSubmit: () => void;
 }
 
 const LeaveRequestForm = ({ onClose, onSubmit }: LeaveRequestFormProps) => {
@@ -20,10 +23,46 @@ const LeaveRequestForm = ({ onClose, onSubmit }: LeaveRequestFormProps) => {
     reason: "",
     emergencyContact: ""
   });
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (!user) return;
+    
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .insert({
+          user_id: user.id,
+          type: formData.type,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          reason: formData.reason,
+          emergency_contact: formData.emergencyContact || null
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Leave Request Submitted",
+        description: "Your leave request has been submitted for approval.",
+      });
+
+      onSubmit();
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit leave request",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -124,8 +163,8 @@ const LeaveRequestForm = ({ onClose, onSubmit }: LeaveRequestFormProps) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Submit Request
+            <Button type="submit" disabled={loading}>
+              {loading ? "Submitting..." : "Submit Request"}
             </Button>
           </div>
         </form>
