@@ -22,9 +22,7 @@ interface LeaveRequest {
   end_date: string;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
-  profiles: {
-    name: string;
-  } | null;
+  user_name: string;
 }
 
 interface Employee {
@@ -94,9 +92,21 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
         monthlyAttendance: 92 // This would need more complex calculation
       });
 
-      // Filter and transform leave data to ensure proper typing
-      const validLeaveData = leaveData?.filter(leave => leave.profiles && typeof leave.profiles === 'object' && 'name' in leave.profiles) || [];
-      setPendingLeaves(validLeaveData as LeaveRequest[]);
+      // Transform leave data to match our interface
+      const transformedLeaveData: LeaveRequest[] = leaveData?.map(leave => ({
+        id: leave.id,
+        user_id: leave.user_id,
+        type: leave.type,
+        start_date: leave.start_date,
+        end_date: leave.end_date,
+        reason: leave.reason,
+        status: leave.status,
+        user_name: leave.profiles && typeof leave.profiles === 'object' && 'name' in leave.profiles 
+          ? leave.profiles.name 
+          : 'Unknown User'
+      })) || [];
+
+      setPendingLeaves(transformedLeaveData);
       setRecentEmployees(recentEmployeeData || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -223,7 +233,7 @@ const OwnerDashboard = ({ user }: OwnerDashboardProps) => {
                   pendingLeaves.map((leave) => (
                     <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <h4 className="font-medium">{leave.profiles?.name || 'Unknown User'}</h4>
+                        <h4 className="font-medium">{leave.user_name}</h4>
                         <p className="text-sm text-gray-500">
                           {leave.type} - {calculateLeaveDays(leave.start_date, leave.end_date)} days
                         </p>
